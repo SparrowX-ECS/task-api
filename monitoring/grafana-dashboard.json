@@ -1,0 +1,19 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "panels": [
+    {"type": "timeseries", "title": "Request rate", "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}, "targets": [{"expr": "sum(rate(task_api_http_requests_total{job=\"task-api\"}[5m]))", "legendFormat": "requests/sec"}]},
+    {"type": "timeseries", "title": "Error rate", "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}, "targets": [{"expr": "sum(rate(task_api_http_requests_total{job=\"task-api\",status=~\"4..|5..\"}[5m])) / sum(rate(task_api_http_requests_total{job=\"task-api\"}[5m]))", "legendFormat": "error ratio"}]},
+    {"type": "timeseries", "title": "95th percentile latency", "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}, "targets": [{"expr": "histogram_quantile(0.95, sum by (le) (rate(task_api_http_request_duration_seconds_bucket{job=\"task-api\"}[5m])))", "legendFormat": "p95"}]},
+    {"type": "timeseries", "title": "HTTP status codes", "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}, "targets": [{"expr": "sum by (status) (rate(task_api_http_requests_total{job=\"task-api\"}[5m]))", "legendFormat": "{{status}}"}]},
+    {"type": "stat", "title": "Process up", "gridPos": {"h": 6, "w": 6, "x": 0, "y": 16}, "targets": [{"expr": "process_start_time_seconds{job=\"task-api\"} > 0", "legendFormat": "up"}]},
+    {"type": "timeseries", "title": "Tasks by status", "gridPos": {"h": 8, "w": 18, "x": 6, "y": 16}, "targets": [{"expr": "task_api_tasks_by_status{job=\"task-api\"}", "legendFormat": "{{status}}"}]},
+    {"type": "timeseries", "title": "Tasks created", "gridPos": {"h": 8, "w": 24, "x": 0, "y": 24}, "targets": [{"expr": "rate(task_api_tasks_created_total{job=\"task-api\"}[5m])", "legendFormat": "created/sec"}]}
+  ],
+  "schemaVersion": 39,
+  "title": "SparrowX Task API",
+  "templating": {"list": []},
+  "time": {"from": "now-6h", "to": "now"},
+  "timezone": "browser",
+  "version": 1
+}
