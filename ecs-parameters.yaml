@@ -1,0 +1,34 @@
+environment:
+  name: sparrowx
+
+service:
+  name: task-api
+  stack: sparrowx-task-api
+
+image:
+  repository: task-api
+
+container:
+  port: 8000
+  cpu: 256
+  memory: 512
+
+deployment:
+  desiredCount: 1
+
+loadBalancer:
+  pathPattern: /api/task/*
+  listenerRulePriority: 120
+  healthCheckPath: /health
+
+database:
+  enabled: true
+  stack: sparrowx-database
+  endpoint: ''
+  port: 5432
+  name: taskdb
+  outputs:
+    endpoint: TaskDatabaseEndpoint
+    port: TaskDatabasePort
+    secret_arn: TaskDatabaseSecretArn
+    security_group_id: TaskDatabaseSecurityGroupId
