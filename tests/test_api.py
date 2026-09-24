@@ -5,9 +5,10 @@ from httpx import AsyncClient
 @pytest.mark.anyio
 async def test_health_and_documentation(client: AsyncClient) -> None:
     assert (await client.get("/health")).json() == {"status": "ok"}
+    assert (await client.get("/api/task/health")).json() == {"status": "ok"}
     assert (await client.get("/docs")).status_code == 200
     spec = (await client.get("/openapi.json")).json()
-    assert set(spec["paths"]) == {"/health", "/api/task/", "/api/task/{task_id}"}
+    assert set(spec["paths"]) == {"/health", "/api/task/health", "/api/task/", "/api/task/{task_id}"}
     assert set(spec["components"]["schemas"]["TaskStatus"]["enum"]) == {"TODO", "IN_PROGRESS", "DONE", "CANCELLED"}
 
 
