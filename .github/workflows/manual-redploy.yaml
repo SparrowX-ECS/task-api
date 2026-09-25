@@ -1,23 +1,13 @@
-name: Task API CI/CD
+name: Manual Re-Deploy
 
 on:
-  pull_request:
-    branches:
-      - main
-    paths:
-        - 'src/**'
-        - 'Dockerfile'
-        - 'ecs-parameters.yaml'
-        - '.github/workflows/deploy.yaml'
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Type REDEPLOY to confirm ECS Task Redeployment
+        required: true
+        type: string
 
-  push:
-    branches:
-      - main
-    paths:
-        - 'src/**'
-        - 'Dockerfile'
-        - 'ecs-parameters.yaml'
-        - '.github/workflows/deploy.yaml'
 
 permissions:
   contents: read
@@ -26,163 +16,10 @@ env:
   AWS_REGION: eu-west-1
 
 jobs:
-  changes:
-      runs-on: ubuntu-latest
-      outputs:
-        code: ${{ steps.filter.outputs.code }}
-        deploy: ${{ steps.filter.outputs.deploy }}
-
-      steps:
-        - uses: actions/checkout@v4
-
-        - uses: dorny/paths-filter@v3
-          id: filter
-          with:
-            filters: |
-              code:
-                - 'src/**'
-                - 'Dockerfile'
-              deploy:
-                - 'src/**'
-                - 'Dockerfile'
-                - 'ecs-parameters.yaml'
-                - '.github/workflows/deploy.yaml'
-  test:
-    name: Test
-    needs: changes
-    if: needs.changes.outputs.code == 'true'
+  redeploy:
+    name: Re-Deploy
+    if: github.event.inputs.confirmation == 'REDEPLOY'
     runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Install dependencies
-        run: pip install -r requirements-dev.txt
-
-      - name: Start PostgreSQL
-        run: |
-          docker run --detach \
-            --name task-api-test-postgres \
-            --env POSTGRES_USER=postgres \
-            --env POSTGRES_PASSWORD=postgres \
-            --env POSTGRES_DB=taskdb \
-            --publish 5433:5432 \
-            postgres:16-alpine
-
-          for attempt in {1..30}; do
-            docker exec task-api-test-postgres pg_isready -U postgres -d taskdb && exit 0
-            sleep 2
-          done
-          exit 1
-
-      - name: Run tests
-        run: pytest
-
-  build:
-    name: Build
-    needs: [changes, test]
-    if: |
-      needs.changes.outputs.code == 'true' &&
-      needs.test.result == 'success' &&
-      github.event_name == 'push' &&
-      github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-
-    permissions:
-      contents: read
-      id-token: write
-
-    steps:
-      - name: Checkout application
-        uses: actions/checkout@v4
-
-      - name: Install yq
-        uses: mikefarah/yq@v4.48.2
-
-      - name: Load image configuration
-        run: echo "ECR_REPOSITORY=$(yq -r '.image.repository' ecs-parameters.yaml)" >> "$GITHUB_ENV"
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/cloudformation-github-actions
-          aws-region: eu-west-1
-
-      - name: Login to Amazon ECR
-        id: ecr
-        uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Check whether image exists in ECR
-        id: image
-        env:
-          IMAGE_TAG: ${{ github.sha }}
-        run: |
-          set +e
-          describe_output=$(aws ecr describe-images \
-            --repository-name "$ECR_REPOSITORY" \
-            --image-ids "imageTag=$IMAGE_TAG" \
-            --region "$AWS_REGION" 2>&1)
-          describe_status=$?
-          set -e
-
-          if [ "$describe_status" -eq 0 ]; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-            echo "Image already exists; skipping build and push."
-          elif grep -q "ImageNotFoundException" <<< "$describe_output"; then
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-            echo "Image does not exist; it will be built and pushed."
-          else
-            echo "$describe_output"
-            exit "$describe_status"
-          fi
-
-      - name: Build Docker image
-        if: steps.image.outputs.exists != 'true'
-        env:
-          ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
-        run: docker build -t "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" .
-
-      - name: Push Docker image
-        if: steps.image.outputs.exists != 'true'
-        env:
-          ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
-        run: docker push "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
-
-      - name: Add build summary
-        if: always()
-        env:
-          IMAGE_TAG: ${{ github.sha }}
-        run: |
-          {
-            echo "## Task API build"
-            echo
-            echo "| Item | Value |"
-            echo "|---|---|"
-            echo "| ECR repository | `$ECR_REPOSITORY` |"
-            echo "| Image tag | `$IMAGE_TAG` |"
-            echo "| Image existed before build | `${{ steps.image.outputs.exists || 'unknown' }}` |"
-          } >> "$GITHUB_STEP_SUMMARY"
-
-  deploy:
-    name: Deploy
-    needs: [changes, test, build]
-    if: |
-      always() &&
-      needs.changes.outputs.deploy == 'true' &&
-      github.event_name == 'push' &&
-      github.ref == 'refs/heads/main' &&
-      (needs.test.result == 'success' || needs.test.result == 'skipped') &&
-      (needs.build.result == 'success' || needs.build.result == 'skipped')
-    runs-on: ubuntu-latest
-
     permissions:
       contents: read
       id-token: write
@@ -279,10 +116,6 @@ jobs:
               "DatabasePort=$DATABASE_PORT"
               "DatabaseName=$DATABASE_NAME"
             )
-          fi
-          
-          if [[ "${{ needs.changes.outputs.code }}" == "true" ]]; then
-            parameters+=("ImageTag=${GITHUB_SHA}")
           fi
 
           aws cloudformation deploy \
