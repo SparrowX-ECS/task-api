@@ -9,7 +9,7 @@ from src.models import Task, TaskStatus
 from src.schemas import TaskCreate, TaskRead, TaskUpdate
 
 
-router = APIRouter(prefix="/api/task", tags=["tasks"])
+router = APIRouter(prefix="/api/tasks", tags=["tasks"])
 tasks_created_total = Counter("task_api_tasks_created_total", "Total tasks created")
 tasks_by_status = Gauge("task_api_tasks_by_status", "Current tasks by status", ("status",))
 
