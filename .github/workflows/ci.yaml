@@ -37,6 +37,7 @@ jobs:
     if: needs.pre-build.outputs.build-needed == 'true'
     uses: SparrowX-ECS/workflows-templates/.github/workflows/test.yaml@v4.4.0
     with:
+      env-params-file: ecs-parameters-dev.yaml
       runtime: python
       database: true
   
