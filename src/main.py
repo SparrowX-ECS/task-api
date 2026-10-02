@@ -10,7 +10,7 @@ from sqlmodel import SQLModel, Session
 from src.database import create_database_engine, database_url_from_environment
 from src.models import Task  # noqa: F401 - registers the table
 from src.routes.tasks import refresh_status_metrics, router as tasks_router, tasks_by_status, tasks_created_total
-
+from src.routes.health import router as health_router
 
 http_requests_total = Counter("task_api_http_requests_total", "Total HTTP requests handled", ("method", "path", "status"))
 http_request_duration_seconds = Histogram("task_api_http_request_duration_seconds", "HTTP request duration", ("method", "path"))
@@ -60,19 +60,14 @@ def create_app(database_url: str | None = None, enable_metrics: bool = True) -> 
     if enable_metrics:
         application.add_middleware(MetricsMiddleware)
 
-    @application.get("/health", tags=["system"])
-    def health() -> dict[str, str]:
-        return {"status": "ok"}
-
-    @application.get("/api/task/health", tags=["system"])
-    def api_health() -> dict[str, str]:
-        return {"status": "ok"}
-
     @application.get("/metrics", include_in_schema=False)
     def metrics() -> Response:
         return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
+    application.include_router(health_router)
+    
     application.include_router(tasks_router)
+    
     return application
 
 

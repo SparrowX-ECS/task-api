@@ -1,0 +1,29 @@
+project:
+  name: sparrowx
+  environment: dev
+
+service:
+  name: task-api
+
+image:
+  nameSpace: sparrowx/dev
+  repository: taskapi
+
+container:
+  port: 8000
+  size: micro
+
+deployment:
+  desiredCount: 1
+
+loadBalancer:
+  pathPattern: /api/tasks/*
+  listenerRulePriority: 120
+  healthCheckPath: /health
+  smokeTestPath: /api/tasks/health
+
+database:
+  enabled: true
+  endpoint: ''
+  port: 5432
+  name: taskdb
