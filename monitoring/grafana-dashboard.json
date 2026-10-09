@@ -1,19 +1,110 @@
 {
   "annotations": {"list": []},
   "editable": true,
+  "graphTooltip": 1,
   "panels": [
-    {"type": "timeseries", "title": "Request rate", "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}, "targets": [{"expr": "sum(rate(task_api_http_requests_total{job=\"task-api\"}[5m]))", "legendFormat": "requests/sec"}]},
-    {"type": "timeseries", "title": "Error rate", "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}, "targets": [{"expr": "sum(rate(task_api_http_requests_total{job=\"task-api\",status=~\"4..|5..\"}[5m])) / sum(rate(task_api_http_requests_total{job=\"task-api\"}[5m]))", "legendFormat": "error ratio"}]},
-    {"type": "timeseries", "title": "95th percentile latency", "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}, "targets": [{"expr": "histogram_quantile(0.95, sum by (le) (rate(task_api_http_request_duration_seconds_bucket{job=\"task-api\"}[5m])))", "legendFormat": "p95"}]},
-    {"type": "timeseries", "title": "HTTP status codes", "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}, "targets": [{"expr": "sum by (status) (rate(task_api_http_requests_total{job=\"task-api\"}[5m]))", "legendFormat": "{{status}}"}]},
-    {"type": "stat", "title": "Process up", "gridPos": {"h": 6, "w": 6, "x": 0, "y": 16}, "targets": [{"expr": "process_start_time_seconds{job=\"task-api\"} > 0", "legendFormat": "up"}]},
-    {"type": "timeseries", "title": "Tasks by status", "gridPos": {"h": 8, "w": 18, "x": 6, "y": 16}, "targets": [{"expr": "task_api_tasks_by_status{job=\"task-api\"}", "legendFormat": "{{status}}"}]},
-    {"type": "timeseries", "title": "Tasks created", "gridPos": {"h": 8, "w": 24, "x": 0, "y": 24}, "targets": [{"expr": "rate(task_api_tasks_created_total{job=\"task-api\"}[5m])", "legendFormat": "created/sec"}]}
+    {
+      "fieldConfig": {"defaults": {"unit": "reqps"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "id": 1,
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
+      "targets": [{"expr": "sum(rate(task_api_http_requests_total[5m]))", "legendFormat": "requests/sec", "refId": "A"}],
+      "title": "Request rate",
+      "type": "timeseries"
+    },
+    {
+      "fieldConfig": {"defaults": {"unit": "percentunit"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "id": 2,
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
+      "targets": [{"expr": "sum(rate(task_api_http_requests_total{status=~\"4..|5..\"}[5m])) / clamp_min(sum(rate(task_api_http_requests_total[5m])), 1e-9)", "legendFormat": "error ratio", "refId": "A"}],
+      "title": "Error ratio",
+      "type": "timeseries"
+    },
+    {
+      "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "id": 3,
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
+      "targets": [
+        {"expr": "histogram_quantile(0.95, sum by (le) (rate(task_api_http_request_duration_seconds_bucket[5m])))", "legendFormat": "p95", "refId": "A"},
+        {"expr": "histogram_quantile(0.50, sum by (le) (rate(task_api_http_request_duration_seconds_bucket[5m])))", "legendFormat": "p50", "refId": "B"}
+      ],
+      "title": "Request latency",
+      "type": "timeseries"
+    },
+    {
+      "fieldConfig": {"defaults": {"unit": "reqps"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "id": 4,
+      "options": {"legend": {"displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
+      "targets": [{"expr": "sum by (status) (rate(task_api_http_requests_total[5m]))", "legendFormat": "HTTP {{status}}", "refId": "A"}],
+      "title": "HTTP status rate",
+      "type": "timeseries"
+    },
+    {
+      "fieldConfig": {"defaults": {"unit": "short", "thresholds": {"mode": "absolute", "steps": [{"color": "red"}, {"color": "green", "value": 1}]}}, "overrides": []},
+      "gridPos": {"h": 5, "w": 6, "x": 0, "y": 16},
+      "id": 5,
+      "options": {"colorMode": "value", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+      "targets": [{"expr": "max(up{service=\"task-api\"})", "legendFormat": "up", "refId": "A"}],
+      "title": "Task API up",
+      "type": "stat"
+    },
+    {
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 18, "x": 6, "y": 16},
+      "id": 6,
+      "options": {"legend": {"displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
+      "targets": [{"expr": "task_api_tasks_by_status", "legendFormat": "{{status}}", "refId": "A"}],
+      "title": "Tasks by status",
+      "type": "timeseries"
+    },
+    {
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24},
+      "id": 7,
+      "options": {"colorMode": "value", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+      "targets": [{"expr": "task_api_tasks_created_total", "legendFormat": "created", "refId": "A"}],
+      "title": "Tasks created",
+      "type": "stat"
+    },
+    {
+      "fieldConfig": {"defaults": {"unit": "bytes"}, "overrides": []},
+      "gridPos": {"h": 5, "w": 6, "x": 12, "y": 24},
+      "id": 8,
+      "options": {"colorMode": "value", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+      "targets": [{"expr": "sum(process_resident_memory_bytes{service=\"task-api\"})", "legendFormat": "resident memory", "refId": "A"}],
+      "title": "Process resident memory",
+      "type": "stat"
+    },
+    {
+      "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []},
+      "gridPos": {"h": 5, "w": 6, "x": 18, "y": 24},
+      "id": 9,
+      "options": {"colorMode": "value", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+      "targets": [{"expr": "time() - max(process_start_time_seconds{service=\"task-api\"})", "legendFormat": "uptime", "refId": "A"}],
+      "title": "Process uptime",
+      "type": "stat"
+    },
+    {
+      "fieldConfig": {"defaults": {"unit": "reqps"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 29},
+      "id": 10,
+      "options": {"legend": {"displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
+      "targets": [{"expr": "sum by (path) (rate(task_api_http_requests_total[5m]))", "legendFormat": "{{path}}", "refId": "A"}],
+      "title": "Request rate by path",
+      "type": "timeseries"
+    }
   ],
+  "refresh": "15s",
   "schemaVersion": 39,
-  "title": "SparrowX Task API",
+  "style": "dark",
+  "tags": ["sparrowx", "task-api"],
   "templating": {"list": []},
   "time": {"from": "now-6h", "to": "now"},
   "timezone": "browser",
-  "version": 1
+  "title": "SparrowX Task API",
+  "uid": "sparrowx-task-api",
+  "version": 2
 }
