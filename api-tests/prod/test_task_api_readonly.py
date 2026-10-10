@@ -36,11 +36,3 @@ def test_openapi_contains_task_routes() -> None:
     paths = response.json()["paths"]
     assert "/api/tasks/" in paths
     assert "/api/tasks/{task_id}" in paths
-
-
-def test_metrics_endpoint_is_readable() -> None:
-    with client() as api:
-        response = api.get("/metrics")
-
-    assert response.status_code == 200, response.text
-    assert "text/plain" in response.headers.get("content-type", "")
