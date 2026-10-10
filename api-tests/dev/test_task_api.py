@@ -79,3 +79,13 @@ def test_task_api_rejects_invalid_requests() -> None:
 
         unknown_task = api.get("/api/tasks/999999")
         assert unknown_task.status_code == 404, unknown_task.text
+
+
+def test_routed_openapi_contains_task_routes() -> None:
+    with client() as api:
+        response = api.get("/api/tasks/openapi.json")
+
+    assert response.status_code == 200, response.text
+    paths = response.json()["paths"]
+    assert "/api/tasks/" in paths
+    assert "/api/tasks/{task_id}" in paths

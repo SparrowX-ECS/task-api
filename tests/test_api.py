@@ -10,6 +10,8 @@ async def test_health_and_documentation(client: AsyncClient) -> None:
     spec = (await client.get("/openapi.json")).json()
     assert set(spec["paths"]) == {"/health", "/api/tasks/health", "/api/tasks/", "/api/tasks/{task_id}"}
     assert set(spec["components"]["schemas"]["TaskStatus"]["enum"]) == {"TODO", "IN_PROGRESS", "DONE", "CANCELLED"}
+    routed_spec = (await client.get("/api/tasks/openapi.json")).json()
+    assert routed_spec["paths"] == spec["paths"]
 
 
 @pytest.mark.anyio
