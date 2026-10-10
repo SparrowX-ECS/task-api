@@ -2,7 +2,7 @@ import os
 import time
 from typing import Any
 
-from fastapi import FastAPI, Response
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 from sqlmodel import SQLModel, Session
@@ -33,8 +33,10 @@ class MetricsMiddleware:
 
         await self.application(scope, receive, record_response)
         path = scope.get("path", "unknown")
-        if path.startswith("/api/task/") and path.split("/")[-1].isdigit():
-            path = "/api/task/{task_id}"
+        if path.startswith("/api/tasks/"):
+            parts = path.strip("/").split("/")
+            if len(parts) >= 3 and parts[2].isdigit():
+                path = "/api/tasks/{task_id}"
         http_requests_total.labels(scope["method"], path, str(response_status)).inc()
         http_request_duration_seconds.labels(scope["method"], path).observe(time.perf_counter() - started)
 
@@ -52,6 +54,20 @@ def create_app(database_url: str | None = None, enable_metrics: bool = True) -> 
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    @application.middleware("http")
+    async def security_headers(request: Request, call_next):
+        response = await call_next(request)
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        response.headers["Permissions-Policy"] = "camera=(), geolocation=(), microphone=()"
+
+        forwarded_proto = request.headers.get("x-forwarded-proto", request.url.scheme)
+        if forwarded_proto == "https":
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        return response
+
     application.state.engine = create_database_engine(database_url or database_url_from_environment())
     SQLModel.metadata.create_all(application.state.engine)
     with Session(application.state.engine) as session:
@@ -63,6 +79,10 @@ def create_app(database_url: str | None = None, enable_metrics: bool = True) -> 
     @application.get("/metrics", include_in_schema=False)
     def metrics() -> Response:
         return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
+    @application.get("/api/tasks/openapi.json", include_in_schema=False)
+    def task_openapi() -> dict[str, Any]:
+        return application.openapi()
 
     application.include_router(health_router)
     
